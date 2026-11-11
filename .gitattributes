@@ -1,0 +1,2 @@
+# Preserve format-patch context and original upstream/vendor whitespace.
+engine-patches/*.patch -whitespace
