@@ -310,6 +310,192 @@
       "title": "GeometryFill",
       "type": "object"
     },
+    "geometry_face_set": {
+      "$defs": {
+        "Selection": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Origin",
+              "type": "array"
+            },
+            "count": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Count",
+              "type": "array"
+            },
+            "grid": {
+              "minimum": 1,
+              "title": "Grid",
+              "type": "integer"
+            },
+            "orient": {
+              "maximum": 5,
+              "minimum": 0,
+              "title": "Orient",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "origin",
+            "count",
+            "grid",
+            "orient"
+          ],
+          "title": "Selection",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "depths": {
+          "items": {
+            "maximum": 8,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Depths",
+          "type": "array"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "selection",
+        "depths"
+      ],
+      "title": "GeometryFaceSet",
+      "type": "object"
+    },
+    "geometry_vertex_set": {
+      "$defs": {
+        "Selection": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Origin",
+              "type": "array"
+            },
+            "count": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Count",
+              "type": "array"
+            },
+            "grid": {
+              "minimum": 1,
+              "title": "Grid",
+              "type": "integer"
+            },
+            "orient": {
+              "maximum": 5,
+              "minimum": 0,
+              "title": "Orient",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "origin",
+            "count",
+            "grid",
+            "orient"
+          ],
+          "title": "Selection",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "corner": {
+          "items": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Corner",
+          "type": "array"
+        },
+        "position": {
+          "items": {
+            "maximum": 8,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Position",
+          "type": "array"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "selection",
+        "corner",
+        "position"
+      ],
+      "title": "GeometryVertexSet",
+      "type": "object"
+    },
     "texture_catalog": {
       "additionalProperties": false,
       "properties": {

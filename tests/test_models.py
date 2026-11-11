@@ -4,7 +4,7 @@ from sauer_mcp.models import validate, schemas
 
 
 def test_contract_is_closed_and_typed():
-  assert len(schemas()) == 20
+  assert len(schemas()) == 22
   with pytest.raises(ValidationError):
     validate("editor_state", {"execute": "quit"})
   with pytest.raises(ValidationError):

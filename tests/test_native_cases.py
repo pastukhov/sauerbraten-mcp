@@ -11,6 +11,7 @@ pytestmark = pytest.mark.native
 @pytest.mark.parametrize(
   "case",
   [
+    "deformation_validation",
     "boot",
     "exact_faces",
     "undo_interleave",

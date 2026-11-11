@@ -22,6 +22,8 @@ DESCRIPTIONS = {
   "texture_catalog": "List texture references. Preserve map_epoch and vslot_generation when applying.",
   "mapmodel_catalog": "List mapmodel registry references for entity_create/update.",
   "geometry_fill": "Replace an aligned selection with solid or empty cubes. count is in cells, grid in world units.",
+  "geometry_face_set": "Set four absolute face-axis depths (0..8 in grid/8 units) on each exact nonempty leaf. Face=selection.orient; order (R,C)=00,10,01,11; X uses Y/Z, Y uses Z/X, Z uses X/Y. Atomic and undoable; invalid/zero-volume shapes rejected.",
+  "geometry_vertex_set": "Set one logical corner (XYZ bits) to absolute local XYZ coordinates 0..8 in grid/8 units on each exact nonempty leaf. Neighbors/coincident corners are not moved implicitly. Atomic and undoable; invalid shapes rejected.",
   "texture_apply": "Set exactly one orientation (0..5) or all six faces of an aligned selection.",
   "material_apply": "Apply a built-in volume/clip material to an aligned selection.",
   "entity_list": "List entities and generation-bound references, optionally in world bounds.",
@@ -67,7 +69,7 @@ def create_server(socket_path, client=None, service=None):
         annotations=types.ToolAnnotations(
           readOnlyHint=name in READONLY,
           destructiveHint=name
-          in {"geometry_fill", "entity_delete", "map_new", "map_open"},
+          in {"geometry_fill", "geometry_face_set", "geometry_vertex_set", "entity_delete", "map_new", "map_open"},
           idempotentHint=name in READONLY,
           openWorldHint=False,
         ),

@@ -8,7 +8,7 @@ async def test_mcp_tools_and_disconnected_error(tmp_path):
   server = create_server(str(tmp_path / "not-running.sock"))
   async with create_connected_server_and_client_session(server) as client:
     tools = await client.list_tools()
-    assert len(tools.tools) == 20
+    assert len(tools.tools) == 22
     names = {t.name for t in tools.tools}
     assert {"geometry_fill", "map_save_as", "view_capture"} <= names
     result = await client.call_tool("editor_state", {})
@@ -40,5 +40,5 @@ async def test_real_stdio_process_protocol(tmp_path):
   async with stdio_client(params) as (reader, writer):
     async with ClientSession(reader, writer) as session:
       await session.initialize()
-      assert len((await session.list_tools()).tools) == 20
+      assert len((await session.list_tools()).tools) == 22
       assert (await session.call_tool("editor_state", {})).isError

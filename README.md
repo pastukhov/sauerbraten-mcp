@@ -1,7 +1,7 @@
 # Sauerbraten MCP
 
 A local MCP server for editing levels in a running Sauerbraten (Cube 2) game.
-It exposes 20 typed tools over stdio and connects to an opt-in native bridge
+It exposes 22 typed tools over stdio and connects to an opt-in native bridge
 through a private Unix socket. Linux and single-player editing are supported.
 This is an unofficial extension; it is not part of an official Sauerbraten release.
 
@@ -89,7 +89,7 @@ the protocol.
 | Purpose | Tools |
 | --- | --- |
 | Observe | editor_state, region_read, entity_list, texture_catalog, mapmodel_catalog |
-| Geometry | geometry_fill, texture_apply, material_apply |
+| Geometry | geometry_fill, geometry_face_set, geometry_vertex_set, texture_apply, material_apply |
 | Entities | entity_create, entity_update, entity_delete |
 | History | history_undo, history_redo |
 | View | camera_set, view_capture |
@@ -107,8 +107,17 @@ reuse with different arguments is rejected. Native manual edits and MCP edits
 share undo/redo, with one history step per RPC. Pending native drag/onrelease
 commands return `BUSY`.
 
-Geometry is aligned solid/empty fills; textures can target one exact face or all
-faces. Entities support light, playerstart and mapmodel; attached entities/history
+Geometry supports aligned solid/empty fills, face deformation and vertex
+movement. `geometry_face_set` sets four absolute depths 0..8 along the selected
+face axis in grid/8 units; even negative faces use absolute coordinates. The
+order is (R,C)=00,10,01,11: X faces use Y/Z, Y faces use Z/X, Z faces use X/Y.
+`geometry_vertex_set` selects a logical corner with XYZ bits and sets its local
+XYZ position 0..8. Both affect every selected cell and require existing nonempty
+leaf cubes exactly matching the grid; fill explicitly first when establishing
+new geometry. They preserve textures/materials. Neighbors and coincident corners
+are not moved implicitly. Inverted, nonconvex and zero-volume shapes are rejected
+before any change. Each successful change is one shared undo step; no-ops do not
+consume history or clear redo. Textures can target one exact face or all faces. Entities support light, playerstart and mapmodel; attached entities/history
 are rejected. Reads preserve the native selection and focus. `camera_set` selects
 first-person and disables zoom; `view_capture` requires `view_revision` and
 returns PNG MCP ImageContent with state tokens.
@@ -134,7 +143,7 @@ supported. Manual custom shader changes disable export/open/new for that process
 until a game restart; `editor_state` explains the reason. Standard lazy shaders
 remain supported. Other unreconstructible or name-dependent cfg may disable
 export. Native save/load is synchronous and can pause frames. Baking lighting,
-coop, batch, vertex/terrain/blend editing are outside this version.
+coop, batch, terrain/blend editing are outside this version.
 
 Mutations allow 4096 cells, 65536 visited nodes, 8 MiB snapshot and 16 MiB inverse
 preparation. Reads return at most 256 leaves / 4096 nodes per page. Captures are
@@ -152,7 +161,7 @@ make -C /absolute/sauerbraten/src MCP=1 test-mcp
 ```
 
 The first command runs isolated Python tests and explicitly skips live/native
-cases. The second runs all 75 tests, including initialized engine cases,
+cases. The second runs the complete suite, including initialized engine cases,
 stdio/SDK calls, native history, camera/PNG, validated saves/reopen, persistence
 and recovery. Integration needs Xvfb/xauth and actual assets. Tests use temporary
 profiles/sockets and never attach to an existing game. To test an installed

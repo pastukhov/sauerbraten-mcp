@@ -88,6 +88,21 @@ class GeometryFill(Mutation):
     return self
 
 
+LocalCoordinate = Annotated[int, Field(ge=0, le=8)]
+CornerBit = Annotated[int, Field(ge=0, le=1)]
+
+
+class GeometryFaceSet(Mutation):
+  selection: Selection
+  depths: Annotated[list[LocalCoordinate], Field(min_length=4, max_length=4)]
+
+
+class GeometryVertexSet(Mutation):
+  selection: Selection
+  corner: Annotated[list[CornerBit], Field(min_length=3, max_length=3)]
+  position: Annotated[list[LocalCoordinate], Field(min_length=3, max_length=3)]
+
+
 class TextureApply(Mutation):
   selection: Selection
   texture_ref: TextureRef
@@ -172,6 +187,8 @@ MODELS = {
   "map_catalog": MapCatalog,
   "region_read": RegionRead,
   "geometry_fill": GeometryFill,
+  "geometry_face_set": GeometryFaceSet,
+  "geometry_vertex_set": GeometryVertexSet,
   "texture_catalog": Catalog,
   "mapmodel_catalog": Catalog,
   "texture_apply": TextureApply,
