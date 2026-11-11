@@ -1,0 +1,420 @@
+From cfd4abaee9d0e99c3f3ed32061a652f18910200b Mon Sep 17 00:00:00 2001
+From: Artem Pastukhov <artem.pastukhov@gmail.com>
+Date: Wed, 11 Nov 2026 21:47:56 +0300
+Subject: [PATCH] engine: add atomic face and vertex deformation with native
+ history
+
+---
+ docs/mcp-editor.md                | 25 +++++++++++--
+ src/engine/mcpeditor.cpp          | 29 +++++++++++++++
+ src/engine/mcpnative.h            |  1 +
+ src/engine/mcpwire.cpp            | 30 +++++++++++++++
+ src/engine/mcpwire.h              |  3 ++
+ src/engine/octaedit.cpp           | 62 +++++++++++++++++++++++++++++++
+ src/tests/mcp/run_native_cases.py |  2 +-
+ src/tests/mcp/runner_cases.cpp    | 38 +++++++++++++++++++
+ src/tests/mcp/test_wire.cpp       | 12 ++++++
+ 9 files changed, 197 insertions(+), 5 deletions(-)
+
+diff --git a/docs/mcp-editor.md b/docs/mcp-editor.md
+index 7f43258..0870a83 100644
+--- a/docs/mcp-editor.md
++++ b/docs/mcp-editor.md
+@@ -1,7 +1,7 @@
+ # Optional live level-editor MCP bridge
+ 
+ This is a modified Sauerbraten source tree with an opt-in local editor bridge.
+-An external Python server exposes 20 MCP tools over stdio. The game accepts
++An external Python server exposes 22 MCP tools over stdio. The game accepts
+ bounded typed requests on a private Unix socket and applies edits on its main
+ thread. MCP is currently supported on Linux, in single-player editing only.
+ 
+@@ -71,7 +71,7 @@ its parent must be private mode 0700 and peers must have the same UID.
+ | Purpose | Tools |
+ | --- | --- |
+ | Observe | editor_state, region_read, entity_list, texture_catalog, mapmodel_catalog |
+-| Geometry | geometry_fill, texture_apply, material_apply |
++| Geometry | geometry_fill, geometry_face_set, geometry_vertex_set, texture_apply, material_apply |
+ | Entities | entity_create, entity_update, entity_delete |
+ | History | history_undo, history_redo |
+ | View | camera_set, view_capture |
+@@ -92,6 +92,23 @@ texture edits affect the exact requested face or all faces. Entities currently
+ support light, playerstart and mapmodel. Generation-bound refs expire on
+ delete/history/reload; attached entities/history are rejected.
+ 
++Face and vertex deformation use absolute integer coordinates in units of
++`grid/8`, not relative mouse gestures. `geometry_face_set` takes four `depths`
++in 0..8 along the selected face axis; negative faces also use absolute depths.
++Their order is (R,C)=00,10,01,11: X faces use Y/Z, Y faces use Z/X and Z faces
++use X/Y. It changes that face of every selected cell. `geometry_vertex_set`
++takes a logical `corner` of three XYZ bits and a local XYZ `position` in 0..8.
++Coincident corners and neighboring cells are not moved implicitly.
++
++Both require existing nonempty leaves exactly matching the selection grid.
++Explicitly fill new cells first; coarser/finer geometry returns
++GEOMETRY_RESOLUTION_MISMATCH. All candidate cubes are checked before modifying
++the world: edge ordering/ranges, three-dimensionality and every native face
++triangle's convexity, independently of cached visibility. Invalid geometry
++returns INVALID_GEOMETRY without changing history or the world. Textures and
++materials are retained. An unchanged request does not consume undo or clear
++redo. Each actual deformation is a distinct shared history step.
++
+ Native manual edits and MCP edits share undo/redo. Each RPC is a separate step;
+ read-only queries preserve the native editing boundary, selection and focus.
+ Pending native drags/onrelease commands return BUSY. camera_set selects
+@@ -142,7 +159,7 @@ definitions that cannot be reconstructed can also disable export.
+ Mutation budgets: 4096 cells, 65536 visited nodes, 8 MiB snapshot and 16 MiB inverse
+ preparation. Reads return at most 256 leaves / 4096 nodes per page. Captures are
+ at most 1280x720, with a 10-minute TTL and 64 MiB owned cache. Batch, coop editing,
+-vertex/terrain/blend editing and lighting baking are outside this first version.
++terrain/blend editing and lighting baking are outside this first version.
+ 
+ ## Verification
+ 
+@@ -154,7 +171,7 @@ sha256sum -c src/vendor/cjson/SHA256SUMS
+ ```
+ 
+ The native target requires Python 3, Xvfb/xauth and actual game assets. It runs
+-wire checks, eight build-mode checks and 17 cases after real SDL/GL
++wire checks, eight build-mode checks and 18 cases after real SDL/GL
+ initialization; game globals and GL are not replaced by stubs. Tests use private
+ profiles and do not edit a normal player profile. To use a different resource
+ root, run `python3 src/tests/mcp/run_native_cases.py --client /absolute/client
+diff --git a/src/engine/mcpeditor.cpp b/src/engine/mcpeditor.cpp
+index 2693a35..bb015fb 100644
+--- a/src/engine/mcpeditor.cpp
++++ b/src/engine/mcpeditor.cpp
+@@ -131,6 +131,7 @@ static cJSON *state() {
+   cJSON_AddNumberToObject(limits, "page_entries", 256);
+   cJSON *caps = cJSON_AddArrayToObject(r, "capabilities");
+   const char *names[] = {"editor_state",  "region_read",   "texture_catalog",  "mapmodel_catalog",
++                         "geometry_face_set", "geometry_vertex_set",
+                          "entity_list",   "geometry_fill", "texture_apply",    "material_apply",
+                          "history_undo",  "history_redo",  "operation_status", "entity_create",
+                          "entity_update", "entity_delete", "camera_set",       "view_capture",
+@@ -426,6 +427,31 @@ static cJSON *geometry(const std::string &method, const cJSON *p) {
+   return err ? error(err, "edit was not applied") : mutation_result(p);
+ }
+ 
++static cJSON *deformation(const std::string &method, const cJSON *p) {
++  bool vertex = method == "geometry_vertex_set";
++  if (!fields(p, vertex ? "|request_id||map_epoch||expected_revision||selection||corner||position|"
++                        : "|request_id||map_epoch||expected_revision||selection||depths|"))
++    return error("INVALID_ARGUMENT", "unknown deformation fields");
++  selinfo s;
++  if (!integer_tokens(get(p, "selection")) || !selection(get(p, "selection"), s))
++    return error("INVALID_ARGUMENT", "invalid aligned selection or cell budget exceeded");
++  int coordinates[4], position[3];
++  if (vertex) {
++    if (!integer_tokens(get(p, "corner")) || !integer_tokens(get(p, "position")) ||
++        !ints3(get(p, "corner"), coordinates, 0, 1) || !ints3(get(p, "position"), position, 0, 8))
++      return error("INVALID_ARGUMENT", "corner must be three bits; position must be three integers 0..8");
++  } else {
++    const cJSON *depths = get(p, "depths");
++    if (!cJSON_IsArray(depths) || cJSON_GetArraySize(depths) != 4)
++      return error("INVALID_ARGUMENT", "four integer face depths required");
++    for (int i = 0; i < 4; i++)
++      if (!strict_integer(cJSON_GetArrayItem(depths, i), 0, 8, coordinates[i]))
++        return error("INVALID_ARGUMENT", "face depths must be integers 0..8");
++  }
++  const char *err = mcp_deform(s, vertex, coordinates, position);
++  return err ? error(err, "deformation was not applied") : mutation_result(p);
++}
++
+ static cJSON *entity_edit(const std::string &method, const cJSON *p) {
+   const char *allowed =
+       method == "entity_create"
+@@ -727,6 +753,8 @@ static cJSON *mutate(const std::string &method, const cJSON *p) {
+     }
+     return mutation_result(p);
+   }
++  if (method == "geometry_face_set" || method == "geometry_vertex_set")
++    return deformation(method, p);
+   if (method == "geometry_fill" || method == "texture_apply" || method == "material_apply")
+     return geometry(method, p);
+   if (method == "entity_create" || method == "entity_update" || method == "entity_delete")
+@@ -865,6 +893,7 @@ cJSON *dispatch(const cJSON *request) {
+   bool ismutation = method == "save_staged_map" || method == "save_ack" ||
+                     method == "commit_open" || method == "map_new" || method == "camera_set" ||
+                     method == "entity_create" || method == "entity_update" ||
++                    method == "geometry_face_set" || method == "geometry_vertex_set" ||
+                     method == "entity_delete" || method == "geometry_fill" ||
+                     method == "texture_apply" || method == "material_apply" ||
+                     method == "history_undo" || method == "history_redo";
+diff --git a/src/engine/mcpnative.h b/src/engine/mcpnative.h
+index 68d8f22..963970b 100644
+--- a/src/engine/mcpnative.h
++++ b/src/engine/mcpnative.h
+@@ -3,6 +3,7 @@
+ extern void forcenextundo();
+ // Included after engine.h: adapters own native history/bookkeeping.
+ extern const char *mcp_geometry(selinfo &s, int op, int texture, int face, int material);
++extern const char *mcp_deform(selinfo &s, bool vertex, const int *coordinates, const int *position);
+ extern const char *mcp_history(bool redo);
+ extern bool mcp_history_available(bool redo);
+ extern bool mcp_editor_busy();
+diff --git a/src/engine/mcpwire.cpp b/src/engine/mcpwire.cpp
+index 72cb856..c0ef2f6 100644
+--- a/src/engine/mcpwire.cpp
++++ b/src/engine/mcpwire.cpp
+@@ -5,6 +5,18 @@
+ #include <string.h>
+ #include <vector>
+ namespace mcp {
++// cJSON reserves bits 8/9 for ownership; this application bit retains lexical
++// number kind without changing vendored cJSON or its numeric type predicate.
++static const int float_literal = 1 << 16;
++bool strict_integer(const cJSON *v, int lo, int hi, int &out) {
++  return v && !(v->type & float_literal) && integer(v, lo, hi, out);
++}
++bool integer_tokens(const cJSON *v) {
++  if (!v || (v->type & float_literal)) return false;
++  for (const cJSON *c = v->child; c; c = c->next)
++    if (!integer_tokens(c)) return false;
++  return true;
++}
+ const cJSON *get(const cJSON *o, const char *k) { return cJSON_GetObjectItemCaseSensitive(o, k); }
+ std::string str(const cJSON *o, const char *k) {
+   const cJSON *v = get(o, k);
+@@ -41,6 +53,7 @@ struct Lexer {
+   const std::string &s;
+   size_t p;
+   int depth, values;
++  std::vector<bool> whole_numbers;
+   Lexer(const std::string &s) : s(s), p(0), depth(0), values(0) {}
+   void ws() {
+     while (p < s.size() && (s[p] == ' ' || s[p] == '\r' || s[p] == '\t'))
+@@ -174,6 +187,7 @@ struct Lexer {
+       }
+     }
+     size_t start = p;
++    bool whole = true;
+     if (s[p] == '-')
+       p++;
+     if (p >= s.size())
+@@ -187,6 +201,7 @@ struct Lexer {
+         p++;
+     }
+     if (p < s.size() && s[p] == '.') {
++      whole = false;
+       p++;
+       size_t a = p;
+       while (p < s.size() && s[p] >= '0' && s[p] <= '9')
+@@ -195,6 +210,7 @@ struct Lexer {
+         return false;
+     }
+     if (p < s.size() && (s[p] == 'e' || s[p] == 'E')) {
++      whole = false;
+       p++;
+       if (p < s.size() && (s[p] == '+' || s[p] == '-'))
+         p++;
+@@ -204,9 +220,14 @@ struct Lexer {
+       if (a == p)
+         return false;
+     }
++    whole_numbers.push_back(whole);
+     return p > start;
+   }
+ };
++static void mark_numbers(cJSON *v, const std::vector<bool> &whole, size_t &index) {
++  if (cJSON_IsNumber(v) && !whole[index++]) v->type |= float_literal;
++  for (cJSON *c = v->child; c; c = c->next) mark_numbers(c, whole, index);
++}
+ static bool tree_valid(const cJSON *v) {
+   if (cJSON_IsNumber(v) && !finite_number(v))
+     return false;
+@@ -236,6 +257,8 @@ bool parse_request(const std::string &line, cJSON *&out, std::string &error) {
+   cJSON *v = cJSON_ParseWithLength(line.c_str(), line.size() + 1);
+   if (!v)
+     return false;
++  size_t number_index = 0;
++  mark_numbers(v, l.whole_numbers, number_index);
+   int version = 0;
+   bool ok = tree_valid(v) && fields(v, "|v||id||method||params|") &&
+             integer(get(v, "v"), 1, 1, version) && cJSON_IsObject(get(v, "params"));
+@@ -252,6 +275,13 @@ bool parse_request(const std::string &line, cJSON *&out, std::string &error) {
+   return true;
+ }
+ static cJSON *sorted(const cJSON *v) {
++  if (cJSON_IsNumber(v) && (v->type & float_literal)) {
++    char *encoded = cJSON_PrintUnformatted(v);
++    std::string number = encoded ? encoded : "null";
++    free(encoded);
++    if (number.find_first_of(".eE") == std::string::npos) number += ".0";
++    return cJSON_CreateRaw(number.c_str());
++  }
+   if (cJSON_IsObject(v)) {
+     std::vector<const cJSON *> children;
+     for (const cJSON *c = v->child; c; c = c->next)
+diff --git a/src/engine/mcpwire.h b/src/engine/mcpwire.h
+index 7930a49..b0ece0b 100644
+--- a/src/engine/mcpwire.h
++++ b/src/engine/mcpwire.h
+@@ -5,6 +5,9 @@
+ namespace mcp {
+ bool finite_number(const cJSON *v);
+ bool integer(const cJSON *v, int low, int high, int &out);
++// Reject decimal/exponent tokens even when their numeric value is integral.
++bool strict_integer(const cJSON *v, int low, int high, int &out);
++bool integer_tokens(const cJSON *v);
+ bool parse_request(const std::string &line, cJSON *&out, std::string &error);
+ std::string canonical(const cJSON *v);
+ bool fields(const cJSON *obj, const char *allowed);
+diff --git a/src/engine/octaedit.cpp b/src/engine/octaedit.cpp
+index 14d9a3a..91bda52 100644
+--- a/src/engine/octaedit.cpp
++++ b/src/engine/octaedit.cpp
+@@ -3108,6 +3108,68 @@ const char *mcp_geometry(selinfo &s,int op,int texture,int face,int material)
+   else mpeditmat(material,-1,s,false);
+   mcp_record(snapshot);forcenextundo();mcp_force_entity_boundary();mcp::end_mutation();return NULL;
+ }
++// Unlike isvalidcube(), this must not depend on cached visibility or neighbors.
++static bool mcp_valid_shape(cube &c)
++{
++  loopi(12) if(edgeget(c.edges[i],0)>edgeget(c.edges[i],1) || edgeget(c.edges[i],1)>8) return false;
++  ivec vertices[8];
++  loopi(8) getcubevector(c,2,i&1,(i>>1)&1,(i>>2)&1,vertices[i]);
++  bool volume=false;
++  for(int a=1;a<8 && !volume;a++) for(int b=a+1;b<8 && !volume;b++) for(int d=b+1;d<8;d++)
++  {
++    ivec n; n.cross(ivec(vertices[a]).sub(vertices[0]),ivec(vertices[b]).sub(vertices[0]));
++    if(n.dot(ivec(vertices[d]).sub(vertices[0]))) { volume=true; break; }
++  }
++  if(!volume) return false;
++  loopi(6)
++  {
++    ivec face[4];genfaceverts(c,i,face);
++    int order=faceconvexity(face)<0 ? 1 : 0;
++    loopj(2)
++    {
++      const ivec &a=face[order], &b=face[(order+j+1)&3], &d=face[(order+j+2)&3];
++      ivec n;n.cross(ivec(b).sub(a),ivec(d).sub(a));
++      if(n.iszero()) continue;
++      loopk(8) if(n.dot(ivec(vertices[k]).sub(a))>0) return false;
++    }
++  }
++  return true;
++}
++const char *mcp_deform(selinfo &s,bool vertex,const int *coordinates,const int *position)
++{
++  struct Candidate { cube *target; cube shape; };
++  std::vector<Candidate> candidates;
++  bool different=false;
++  for(int z=0;z<s.s.z;z++) for(int y=0;y<s.s.y;y++) for(int x=0;x<s.s.x;x++)
++  {
++    ivec origin=ivec(x,y,z).mul(s.grid).add(s.o), found;int size;
++    cube &c=lookupcube(origin,-s.grid,found,size);
++    if(size!=s.grid || c.children) return "GEOMETRY_RESOLUTION_MISMATCH";
++    if(isempty(c)) return "INVALID_GEOMETRY";
++    Candidate next;next.target=&c;next.shape=c;
++    if(vertex)
++    {
++      loopi(3) edgeset(cubeedge(next.shape,i,coordinates[R[i]],coordinates[C[i]]),coordinates[i],position[i]);
++    }
++    else
++    {
++      int d=dimension(s.orient),end=dimcoord(s.orient);
++      loopi(4) edgeset(next.shape.edges[4*d+i],end,coordinates[i]);
++    }
++    if(!mcp_valid_shape(next.shape)) return "INVALID_GEOMETRY";
++    different=different || memcmp(c.edges,next.shape.edges,12)!=0;
++    candidates.push_back(next);
++  }
++  if(!different) return NULL;
++  size_t bytes;if(!mcp_selection_cost(s,bytes)) return "UNDO_UNAVAILABLE";
++  undoblock *snapshot=newundocube(s);if(!snapshot) return "UNDO_UNAVAILABLE";
++  if(undosize(snapshot)>(undomegs<<20)) { freeundo(snapshot); return "UNDO_UNAVAILABLE"; }
++  // All candidates and the inverse are ready before touching the live world.
++  mcp::begin_mutation();forcenextundo();mcp_force_entity_boundary();
++  for(size_t i=0;i<candidates.size();i++) memcpy(candidates[i].target->edges,candidates[i].shape.edges,12);
++  changed(s);mcp_record(snapshot);forcenextundo();mcp_force_entity_boundary();mcp::end_mutation();
++  return NULL;
++}
+ static const char *mcp_swapundo(undolist &a,undolist &b,bool rpc)
+ {
+   if(!editmode) return "NOT_EDITING";
+diff --git a/src/tests/mcp/run_native_cases.py b/src/tests/mcp/run_native_cases.py
+index 8831896..d67b25b 100644
+--- a/src/tests/mcp/run_native_cases.py
++++ b/src/tests/mcp/run_native_cases.py
+@@ -7,7 +7,7 @@ import subprocess
+ import tempfile
+ 
+ CASES = [
+-  "boot", "exact_faces", "undo_interleave", "read_boundaries",
++  "deformation_validation", "boot", "exact_faces", "undo_interleave", "read_boundaries",
+   "entity_boundary_selected", "entity_boundary_hover", "attached_history",
+   "history_accounting", "allocation_failure", "native_hooks", "aux_fingerprint",
+   "capture_error", "remote_native_history", "config_edits", "camera_modes",
+diff --git a/src/tests/mcp/runner_cases.cpp b/src/tests/mcp/runner_cases.cpp
+index 077175a..51f2a7b 100644
+--- a/src/tests/mcp/runner_cases.cpp
++++ b/src/tests/mcp/runner_cases.cpp
+@@ -47,6 +47,44 @@ bool mcp_run_native_case(const std::string &name, cJSON *report) {
+   sel = at();
+   havesel = true;
+   forcenextundo();
++  if (name == "deformation_validation") {
++    CHECK(!mcp_geometry(sel,0,1,-1,0));
++    int inset[3]={1,1,1}, farcorner[3]={1,1,1}, flat[4]={4,4,4,4};
++    int history=mcp_history_records(false), nodes=allocnodes;
++    uint64_t revision=mcp::revision;
++    for(int visibility=0;visibility<3;visibility++) {
++      cube &c=lookupcube(sel.o,-sel.grid);c.visible=visibility==0 ? 0 : visibility==1 ? 3 : 255;
++      const char *err=mcp_deform(sel,true,farcorner,inset);
++      CHECK(err && !strcmp(err,"INVALID_GEOMETRY"));
++      CHECK(isentirelysolid(c));
++    }
++    CHECK(mcp_history_records(false)==history && allocnodes==nodes && mcp::revision==revision);
++    cube &plane=lookupcube(sel.o,-sel.grid);
++    loopi(8) {
++      int x=i&1,y=(i>>1)&1,z=(i>>2)&1;
++      setcubevector(plane,2,x,y,z,ivec(4+4*x-2*y-2*z,4-2*x+4*y-2*z,4-2*x-2*y+4*z));
++    }
++    int corner[3]={0,0,0}, position[3]={4,4,4};
++    CHECK(mcp_deform(sel,true,corner,position));
++    solidfaces(plane);
++    mcp::allocation_after=0;
++    const char *err=mcp_deform(sel,false,flat,NULL);
++    mcp::allocation_after=-1;
++    CHECK(err && !strcmp(err,"UNDO_UNAVAILABLE"));
++    CHECK(isentirelysolid(plane) && mcp_history_records(false)==history);
++    CHECK(mcp::revision==revision && mcp_history_accounting_valid());
++    CHECK(!mcp_deform(sel,false,flat,NULL));
++    CHECK(mcp_history_records(false)==history+1);
++    selinfo manual=at(32);mpdelcube(manual,true);
++    CHECK(!mcp_history(false));
++    CHECK(lookupcube(sel.o,-sel.grid).edges[8]==64);
++    CHECK(!mcp_history(false));
++    CHECK(isentirelysolid(lookupcube(sel.o,-sel.grid)));
++    CHECK(!mcp_history(true));
++    CHECK(lookupcube(sel.o,-sel.grid).edges[8]==64);
++    CHECK(mcp_history_accounting_valid());
++    return true;
++  }
+   if (name == "rpc_view_state") {
+     entity e;
+     memset(&e, 0, sizeof(e));
+diff --git a/src/tests/mcp/test_wire.cpp b/src/tests/mcp/test_wire.cpp
+index c09ce7e..5da683b 100644
+--- a/src/tests/mcp/test_wire.cpp
++++ b/src/tests/mcp/test_wire.cpp
+@@ -33,6 +33,18 @@ int main() {
+   v = cJSON_Parse("{\"b\":1,\"a\":2}");
+   assert(mcp::canonical(v) == "{\"a\":2,\"b\":1}");
+   cJSON_Delete(v);
++  const char *numbers[] = {"4", "4.0", "4e0", "4E+0", "4.5"};
++  std::string canonical_integer;
++  for (int i = 0; i < 5; i++) {
++    std::string line = std::string("{\"v\":1,\"id\":\"x\",\"method\":\"test\",\"params\":{\"n\":") + numbers[i] + "}}";
++    assert(mcp::parse_request(line, v, error));
++    const cJSON *params = mcp::get(v, "params"), *value = mcp::get(params, "n");
++    assert(mcp::strict_integer(value, 0, 8, n) == (i == 0));
++    assert(mcp::integer_tokens(params) == (i == 0));
++    if (i == 0) canonical_integer = mcp::canonical(params);
++    else assert(mcp::canonical(params) != canonical_integer);
++    cJSON_Delete(v);
++  }
+   std::ifstream input("tests/mcp/cases/wire.json");
+   std::string fixtures((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+   cJSON *cases = cJSON_Parse(fixtures.c_str());

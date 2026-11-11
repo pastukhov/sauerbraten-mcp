@@ -110,6 +110,11 @@ async def test_deformation_rejection_atomicity(game):
     ('geometry_face_set',dict(selection=dict(SEL,origin=[64,64,640]),depths=[4]*4),'GEOMETRY_RESOLUTION_MISMATCH'),
     ('geometry_vertex_set',dict(selection=SEL,corner=[0,0,0],position=[9,0,0]),'INVALID_ARGUMENT'),
     ('geometry_vertex_set',dict(selection=SEL,corner=[True,0,0],position=[1,0,0]),'INVALID_ARGUMENT'),
+    ('geometry_face_set',dict(selection=SEL,depths=[4.0]*4),'INVALID_ARGUMENT'),
+    ('geometry_face_set',dict(selection=dict(SEL,grid=8.0),depths=[4]*4),'INVALID_ARGUMENT'),
+    ('geometry_face_set',dict(selection=SEL,depths=[4.5]*4),'INVALID_ARGUMENT'),
+    ('geometry_vertex_set',dict(selection=SEL,corner=[1.0,1,1],position=[7,7,7]),'INVALID_ARGUMENT'),
+    ('geometry_vertex_set',dict(selection=SEL,corner=[1,1,1],position=[7.0,7,7]),'INVALID_ARGUMENT'),
   ]:
     with pytest.raises(BridgeError,match=error): await game.call(method,await token(game,**args))
     after=await game.call('editor_state',{})

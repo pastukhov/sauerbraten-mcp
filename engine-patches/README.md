@@ -3,7 +3,7 @@
 Prepared against the official repository:
 `https://svn.code.sf.net/p/sauerbraten/code/` at **r6891** (verified 2026-11-11).
 The local source/data baseline is Git `747c28be4459fddacfccc4f98d5977d3d911a060`;
-the resulting tree is `522cda246694a158bdd222e2cd313d143d503b9f`.
+the resulting tree is `4ffcc0bd1976993e7cbd28f4fa1246eb4045ae8e`.
 `series` records patch order; `SHA256SUMS` verifies the patch bytes.
 
 This is a proposed opt-in Linux editor bridge, not an accepted upstream change.
@@ -13,6 +13,11 @@ provides the MCP SDK, validation supervisor and persistent export journal.
 
 1. Native bridge, editor adapter, build gating, cJSON and native regression tests.
 2. English usage documentation and portable build/launch helpers.
+3. Atomic face/vertex deformation with native undo/redo and strict coordinate tokens.
+
+The first two patch files are unchanged from the original submission; the third
+is an additive extension and has not been sent to the maintainer. The resulting
+native commit is `cfd4abaee9d0e99c3f3ed32061a652f18910200b`.
 
 ## Apply and verify
 
