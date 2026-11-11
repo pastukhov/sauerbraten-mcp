@@ -1,0 +1,52 @@
+[
+  {
+    "name": "state",
+    "valid": true,
+    "request": "{\"v\": 1, \"id\": \"hello\", \"method\": \"editor_state\", \"params\": {}}"
+  },
+  {
+    "name": "unicode",
+    "valid": true,
+    "request": "{\"v\": 1, \"id\": \"hello\", \"method\": \"editor_state\", \"params\": {\"label\": \"уровень\"}}"
+  },
+  {
+    "name": "extra",
+    "valid": false,
+    "request": "{\"v\": 1, \"id\": \"hello\", \"method\": \"editor_state\", \"params\": {}, \"extra\": 0}"
+  },
+  {
+    "name": "duplicate",
+    "valid": false,
+    "request": "{\"v\":1,\"id\":\"x\",\"method\":\"editor_state\",\"params\":{\"a\":1,\"\\u0061\":2}}"
+  },
+  {
+    "name": "nul",
+    "valid": false,
+    "request": "{\"v\":1,\"id\":\"x\",\"method\":\"x\\u0000y\",\"params\":{}}"
+  },
+  {
+    "name": "overflow",
+    "valid": false,
+    "request": "{\"v\":1,\"id\":\"x\",\"method\":\"editor_state\",\"params\":{\"n\":1e9999}}"
+  },
+  {
+    "name": "trailing",
+    "valid": false,
+    "request": "{\"v\": 1, \"id\": \"hello\", \"method\": \"editor_state\", \"params\": {}} {}"
+  },
+  {
+    "name": "fraction-version",
+    "valid": false,
+    "request": "{\"v\": 1.5, \"id\": \"hello\", \"method\": \"editor_state\", \"params\": {}}"
+  },
+  {
+    "name": "id-length",
+    "valid": false,
+    "request": "{\"v\": 1, \"id\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\", \"method\": \"editor_state\", \"params\": {}}"
+  },
+  {
+    "name": "surrogate",
+    "valid": false,
+    "request": "{\"v\":1,\"id\":\"x\",\"method\":\"editor_state\",\"params\":{\"s\":\"\\ud800\"}}"
+  }
+]

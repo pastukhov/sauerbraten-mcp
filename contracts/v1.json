@@ -1,0 +1,1169 @@
+{
+  "wire_version": 1,
+  "tools": {
+    "editor_state": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "Empty",
+      "type": "object"
+    },
+    "operation_status": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id"
+      ],
+      "title": "Status",
+      "type": "object"
+    },
+    "map_new": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "scale": {
+          "maximum": 16,
+          "minimum": 10,
+          "title": "Scale",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "scale"
+      ],
+      "title": "MapNew",
+      "type": "object"
+    },
+    "map_open": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "map_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Id"
+        },
+        "artifact_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Id"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision"
+      ],
+      "title": "MapOpen",
+      "type": "object"
+    },
+    "map_catalog": {
+      "additionalProperties": false,
+      "properties": {
+        "search": {
+          "default": "",
+          "title": "Search",
+          "type": "string"
+        },
+        "offset": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "limit": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "title": "MapCatalog",
+      "type": "object"
+    },
+    "region_read": {
+      "$defs": {
+        "Bounds": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Origin",
+              "type": "array"
+            },
+            "extent": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Extent",
+              "type": "array"
+            }
+          },
+          "required": [
+            "origin",
+            "extent"
+          ],
+          "title": "Bounds",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "bounds": {
+          "$ref": "#/$defs/Bounds"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cursor"
+        }
+      },
+      "required": [
+        "bounds"
+      ],
+      "title": "RegionRead",
+      "type": "object"
+    },
+    "geometry_fill": {
+      "$defs": {
+        "Selection": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Origin",
+              "type": "array"
+            },
+            "count": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Count",
+              "type": "array"
+            },
+            "grid": {
+              "minimum": 1,
+              "title": "Grid",
+              "type": "integer"
+            },
+            "orient": {
+              "maximum": 5,
+              "minimum": 0,
+              "title": "Orient",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "origin",
+            "count",
+            "grid",
+            "orient"
+          ],
+          "title": "Selection",
+          "type": "object"
+        },
+        "TextureRef": {
+          "additionalProperties": false,
+          "properties": {
+            "map_epoch": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Map Epoch",
+              "type": "string"
+            },
+            "vslot_generation": {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "title": "Vslot Generation",
+              "type": "string"
+            },
+            "index": {
+              "minimum": 0,
+              "title": "Index",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "map_epoch",
+            "vslot_generation",
+            "index"
+          ],
+          "title": "TextureRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "mode": {
+          "enum": [
+            "solid",
+            "empty"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "texture_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextureRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "selection",
+        "mode"
+      ],
+      "title": "GeometryFill",
+      "type": "object"
+    },
+    "texture_catalog": {
+      "additionalProperties": false,
+      "properties": {
+        "offset": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "limit": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "map_epoch": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Epoch"
+        },
+        "generation": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generation"
+        }
+      },
+      "title": "Catalog",
+      "type": "object"
+    },
+    "mapmodel_catalog": {
+      "additionalProperties": false,
+      "properties": {
+        "offset": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "limit": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "map_epoch": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Epoch"
+        },
+        "generation": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generation"
+        }
+      },
+      "title": "Catalog",
+      "type": "object"
+    },
+    "texture_apply": {
+      "$defs": {
+        "Selection": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Origin",
+              "type": "array"
+            },
+            "count": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Count",
+              "type": "array"
+            },
+            "grid": {
+              "minimum": 1,
+              "title": "Grid",
+              "type": "integer"
+            },
+            "orient": {
+              "maximum": 5,
+              "minimum": 0,
+              "title": "Orient",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "origin",
+            "count",
+            "grid",
+            "orient"
+          ],
+          "title": "Selection",
+          "type": "object"
+        },
+        "TextureRef": {
+          "additionalProperties": false,
+          "properties": {
+            "map_epoch": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Map Epoch",
+              "type": "string"
+            },
+            "vslot_generation": {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "title": "Vslot Generation",
+              "type": "string"
+            },
+            "index": {
+              "minimum": 0,
+              "title": "Index",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "map_epoch",
+            "vslot_generation",
+            "index"
+          ],
+          "title": "TextureRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "texture_ref": {
+          "$ref": "#/$defs/TextureRef"
+        },
+        "faces": {
+          "enum": [
+            "all",
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "title": "Faces"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "selection",
+        "texture_ref",
+        "faces"
+      ],
+      "title": "TextureApply",
+      "type": "object"
+    },
+    "material_apply": {
+      "$defs": {
+        "Selection": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Origin",
+              "type": "array"
+            },
+            "count": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Count",
+              "type": "array"
+            },
+            "grid": {
+              "minimum": 1,
+              "title": "Grid",
+              "type": "integer"
+            },
+            "orient": {
+              "maximum": 5,
+              "minimum": 0,
+              "title": "Orient",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "origin",
+            "count",
+            "grid",
+            "orient"
+          ],
+          "title": "Selection",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "material": {
+          "enum": [
+            "air",
+            "water",
+            "lava",
+            "glass",
+            "clip",
+            "noclip",
+            "gameclip",
+            "death"
+          ],
+          "title": "Material",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "selection",
+        "material"
+      ],
+      "title": "MaterialApply",
+      "type": "object"
+    },
+    "entity_list": {
+      "$defs": {
+        "Bounds": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Origin",
+              "type": "array"
+            },
+            "extent": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "title": "Extent",
+              "type": "array"
+            }
+          },
+          "required": [
+            "origin",
+            "extent"
+          ],
+          "title": "Bounds",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "bounds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bounds"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        },
+        "offset": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "limit": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "map_epoch": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Epoch"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        }
+      },
+      "title": "EntityList",
+      "type": "object"
+    },
+    "entity_create": {
+      "$defs": {
+        "ModelRef": {
+          "additionalProperties": false,
+          "properties": {
+            "map_epoch": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Map Epoch",
+              "type": "string"
+            },
+            "mapmodel_generation": {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "title": "Mapmodel Generation",
+              "type": "string"
+            },
+            "index": {
+              "minimum": 0,
+              "title": "Index",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "map_epoch",
+            "mapmodel_generation",
+            "index"
+          ],
+          "title": "ModelRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "light",
+            "playerstart",
+            "mapmodel"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "position": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Position",
+          "type": "array"
+        },
+        "attrs": {
+          "items": {
+            "maximum": 32767,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "title": "Attrs",
+          "type": "array"
+        },
+        "model_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "type",
+        "position",
+        "attrs"
+      ],
+      "title": "EntityCreate",
+      "type": "object"
+    },
+    "entity_update": {
+      "$defs": {
+        "EntityRef": {
+          "additionalProperties": false,
+          "properties": {
+            "map_epoch": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Map Epoch",
+              "type": "string"
+            },
+            "generation": {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "title": "Generation",
+              "type": "string"
+            },
+            "index": {
+              "exclusiveMaximum": 10000,
+              "minimum": 0,
+              "title": "Index",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "map_epoch",
+            "generation",
+            "index"
+          ],
+          "title": "EntityRef",
+          "type": "object"
+        },
+        "ModelRef": {
+          "additionalProperties": false,
+          "properties": {
+            "map_epoch": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Map Epoch",
+              "type": "string"
+            },
+            "mapmodel_generation": {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "title": "Mapmodel Generation",
+              "type": "string"
+            },
+            "index": {
+              "minimum": 0,
+              "title": "Index",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "map_epoch",
+            "mapmodel_generation",
+            "index"
+          ],
+          "title": "ModelRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "entity_ref": {
+          "$ref": "#/$defs/EntityRef"
+        },
+        "position": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Position",
+          "type": "array"
+        },
+        "attrs": {
+          "items": {
+            "maximum": 32767,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "title": "Attrs",
+          "type": "array"
+        },
+        "model_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "entity_ref",
+        "position",
+        "attrs"
+      ],
+      "title": "EntityUpdate",
+      "type": "object"
+    },
+    "entity_delete": {
+      "$defs": {
+        "EntityRef": {
+          "additionalProperties": false,
+          "properties": {
+            "map_epoch": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "title": "Map Epoch",
+              "type": "string"
+            },
+            "generation": {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "title": "Generation",
+              "type": "string"
+            },
+            "index": {
+              "exclusiveMaximum": 10000,
+              "minimum": 0,
+              "title": "Index",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "map_epoch",
+            "generation",
+            "index"
+          ],
+          "title": "EntityRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "entity_ref": {
+          "$ref": "#/$defs/EntityRef"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "entity_ref"
+      ],
+      "title": "EntityDelete",
+      "type": "object"
+    },
+    "history_undo": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision"
+      ],
+      "title": "Mutation",
+      "type": "object"
+    },
+    "history_redo": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision"
+      ],
+      "title": "Mutation",
+      "type": "object"
+    },
+    "camera_set": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "position": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Position",
+          "type": "array"
+        },
+        "yaw": {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Yaw",
+          "type": "number"
+        },
+        "pitch": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Pitch",
+          "type": "number"
+        },
+        "fov": {
+          "default": 100,
+          "maximum": 120,
+          "minimum": 30,
+          "title": "Fov",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "position",
+        "yaw",
+        "pitch"
+      ],
+      "title": "CameraSet",
+      "type": "object"
+    },
+    "view_capture": {
+      "additionalProperties": false,
+      "properties": {
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "view_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "View Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "map_epoch",
+        "expected_revision",
+        "view_revision"
+      ],
+      "title": "Capture",
+      "type": "object"
+    },
+    "map_save_as": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "map_epoch": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Map Epoch",
+          "type": "string"
+        },
+        "expected_revision": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "slug": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,31}$",
+          "title": "Slug",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "map_epoch",
+        "expected_revision",
+        "slug"
+      ],
+      "title": "SaveAs",
+      "type": "object"
+    }
+  }
+}

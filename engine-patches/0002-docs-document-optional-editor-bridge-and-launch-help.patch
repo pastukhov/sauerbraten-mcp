@@ -1,0 +1,261 @@
+From a35232bdfdd4f54abd2cf16da345bfd56c218088 Mon Sep 17 00:00:00 2001
+From: Artem Pastukhov <artem.pastukhov@gmail.com>
+Date: Wed, 11 Nov 2026 18:13:01 +0300
+Subject: [PATCH 2/2] docs: document optional editor bridge and launch helpers
+
+---
+ docs/mcp-editor.md              | 176 ++++++++++++++++++++++++++++++++
+ tools/build-mcp.sh              |   5 +
+ tools/run-editor.sh             |  25 +++++
+ tools/tests/run_editor_smoke.sh |  15 +++
+ 4 files changed, 221 insertions(+)
+ create mode 100644 docs/mcp-editor.md
+ create mode 100755 tools/build-mcp.sh
+ create mode 100755 tools/run-editor.sh
+ create mode 100644 tools/tests/run_editor_smoke.sh
+
+diff --git a/docs/mcp-editor.md b/docs/mcp-editor.md
+new file mode 100644
+index 0000000..7f43258
+--- /dev/null
++++ b/docs/mcp-editor.md
+@@ -0,0 +1,176 @@
++# Optional live level-editor MCP bridge
++
++This is a modified Sauerbraten source tree with an opt-in local editor bridge.
++An external Python server exposes 20 MCP tools over stdio. The game accepts
++bounded typed requests on a private Unix socket and applies edits on its main
++thread. MCP is currently supported on Linux, in single-player editing only.
++
++## Build
++
++The default `make -C src` build and the standalone server/master do not include
++MCP, cJSON or libcrypto. Their existing build dependencies are unchanged.
++The bundled upstream ENet is used in both modes.
++
++To build the bridge, install the ordinary Sauerbraten development dependencies
++(C/C++ compiler, make, SDL2, SDL2_image, SDL2_mixer, zlib and OpenGL), plus
++OpenSSL development headers/libcrypto, then run:
++
++```sh
++make -C src -j2 MCP=1 client server master
++# Equivalent convenience wrapper for the enabled client:
++tools/build-mcp.sh -j2 client
++```
++
++Enabled client objects use `src/.mcp/`, separate from the default objects.
++Switching `MCP=1` on or off does not require `make clean`. Even in an enabled
++build the socket is off until `-mcpbridge<absolute-path>` is supplied.
++The socket option and native validation/test CLI exist only in enabled builds.
++No network listener or MCP SDK is added to the game.
++
++The Python MCP server is maintained separately in
++[sauerbraten-mcp](https://github.com/pastukhov/sauerbraten-mcp). Install it there
++with Python >=3.11 and `uv sync --locked`. No Python SDK is needed to build or
++test this native bridge. cJSON 1.7.19 is vendored under `src/vendor/cjson/` with
++its original MIT license and checked source hashes. Existing Sauerbraten
++notices/licenses remain unchanged.
++
++## Launch and connect
++
++Run from a complete Sauerbraten checkout with its `data/` and `packages/`:
++
++```sh
++umask 077
++sauer_runtime=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/sauer-mcp.XXXXXX")
++printf 'MCP socket: %s/editor.sock\n' "$sauer_runtime"
++tools/run-editor.sh \
++  --client "$PWD/src/sauer_client" \
++  --data-root "$PWD" \
++  --profile "$HOME/.local/share/sauerbraten-mcp" \
++  --socket "$sauer_runtime/editor.sock"
++```
++
++The launcher uses a dedicated profile and redirects game output to that
++profile's `client.log`. Create/open a map in the native UI and enter edit mode.
++In a second terminal or in the MCP host, run the server with the printed path:
++
++```sh
++uv run --project /absolute/sauerbraten-mcp sauer-mcp \
++  --client /absolute/checkout/src/sauer_client \
++  --socket /absolute/private-directory/editor.sock
++```
++
++For an MCP host configure the same `uv` command/arguments as a stdio server.
++Use absolute paths; explicitly passing `--client` also works with a wheel
++installation outside the source tree. The server attaches only: it does not
++start or stop the game. Restarting the server can reconnect to the same game.
++One native peer is allowed; another receives BUSY. The socket is mode 0600,
++its parent must be private mode 0700 and peers must have the same UID.
++
++## Tools and tokens
++
++| Purpose | Tools |
++| --- | --- |
++| Observe | editor_state, region_read, entity_list, texture_catalog, mapmodel_catalog |
++| Geometry | geometry_fill, texture_apply, material_apply |
++| Entities | entity_create, entity_update, entity_delete |
++| History | history_undo, history_redo |
++| View | camera_set, view_capture |
++| Maps and recovery | map_catalog, map_new, map_open, map_save_as, operation_status |
++
++Read `editor_state` before editing and obtain resource refs from the catalogs.
++Each mutation requires a fresh request_id UUID, current map_epoch and
++expected_revision. Revisions/generations are canonical decimal strings, not
++JSON floating-point numbers. Keep the UUID and exact input if a reply is lost;
++ask operation_status before deciding what to do. The bridge does not retry a
++mutation automatically, and unknown does not mean it is safe to repeat it.
++Reusing a UUID for different input is rejected.
++
++Selections specify integer world-coordinate `origin`, `count` in cells,
++power-of-two `grid`, and orient 0..5 (-X,+X,-Y,+Y,-Z,+Z). Bounds use world-unit
++`extent`. Ranges are half-open. Geometry edits are aligned solid/empty fills;
++texture edits affect the exact requested face or all faces. Entities currently
++support light, playerstart and mapmodel. Generation-bound refs expire on
++delete/history/reload; attached entities/history are rejected.
++
++Native manual edits and MCP edits share undo/redo. Each RPC is a separate step;
++read-only queries preserve the native editing boundary, selection and focus.
++Pending native drags/onrelease commands return BUSY. camera_set selects
++first-person and disables zoom. view_capture requires the current view_revision
++and returns PNG MCP ImageContent plus frame tokens. Native edit-mode material
++overlays can still be toggled with the ordinary M binding.
++
++Full closed input schemas are advertised by tools/list and recorded in
++`contracts/v1.json` in the separate Python repository. Unknown fields and invalid, stale or non-finite inputs
++are also rejected independently inside the game, including under -ffast-math.
++There is no arbitrary CubeScript, shell or file-operation tool.
++
++## Save/load behavior and limits
++
++map_new/map_open refuse to replace an unsaved world. map_open pins the source
++payload, preflights it in a separate SDL/GL client and checks state/dependencies
++again before the main-thread commit. Native loading is destructive; a failure
++after reset reports the new state/recovery reference rather than promising a
++complete rollback. Ordinary edits are blocked while recovery_required is set.
++
++map_save_as publishes a new immutable bundle in the dedicated profile:
++`packages/mcp/<slug>-<request_uuid>/{level.ogz,level.cfg,manifest.json}`.
++It does not overwrite source maps or compact the live vslots/history. Export
++reconstructs the original trusted cfg in a private validator and compares
++semantic content/config fingerprints. Bundles depend on this installation's
++assets and cfg; they are not standalone media packages. Changed or shadowed
++dependencies prevent artifact reopening before reset.
++
++The result includes revision_saved and clean_ack. Edits during validation are
++allowed: the snapshot is saved, but a stale acknowledgement leaves the active
++world dirty. A durable private export journal supports outcome lookup/replay
++after transport failures or server restarts. Published outcomes remain readable
++when the game is offline. Simultaneous identical opens share one preflight and
++commit; cancelling a caller does not cancel that shared operation.
++
++The Python supervisor runs validators via Xvfb/xauth, with a bounded timeout and
++kill/reap. No validation subprocess runs in the render loop. Native save/load
++itself is synchronous and can pause frames. Light baking is not part of MCP;
++lighting_dirty is preserved in exports and may require a native recalculation.
++
++Custom shader declarations/variants/alternate/fast/deferred definitions are
++unsupported in preflight. The shader registry survives native map changes, so
++manual custom shader changes latch export_supported=false for that process;
++map_open/map_new/export then require a game restart. editor_state reports the
++reason. Standard lazy shaders remain supported. Name-dependent cfg and runtime
++definitions that cannot be reconstructed can also disable export.
++
++Mutation budgets: 4096 cells, 65536 visited nodes, 8 MiB snapshot and 16 MiB inverse
++preparation. Reads return at most 256 leaves / 4096 nodes per page. Captures are
++at most 1280x720, with a 10-minute TTL and 64 MiB owned cache. Batch, coop editing,
++vertex/terrain/blend editing and lighting baking are outside this first version.
++
++## Verification
++
++```sh
++make -C src test-mcp-transport test-mcp-build-modes
++make -C src MCP=1 test-mcp
++sh tools/tests/run_editor_smoke.sh
++sha256sum -c src/vendor/cjson/SHA256SUMS
++```
++
++The native target requires Python 3, Xvfb/xauth and actual game assets. It runs
++wire checks, eight build-mode checks and 17 cases after real SDL/GL
++initialization; game globals and GL are not replaced by stubs. Tests use private
++profiles and do not edit a normal player profile. To use a different resource
++root, run `python3 src/tests/mcp/run_native_cases.py --client /absolute/client
++--data /absolute/resources` from the checkout.
++
++Run the Python server's end-to-end suite separately:
++
++```sh
++cd /absolute/sauerbraten-mcp
++SAUER_MCP_ENGINE=/absolute/sauerbraten uv run --locked pytest -q
++```
++
++This includes MCP stdio/SDK calls, geometry/history/entities, PNG capture,
++validated save/reopen, recovery and native/Python wire-fixture agreement. The
++server's stdout contains protocol only. See the Python repository for test
++client/data overrides.
++
++Remove only your own temporary profiles/runtime artifacts. Saved bundles and
++the export journal are persistent outcomes needed for recovery.
+diff --git a/tools/build-mcp.sh b/tools/build-mcp.sh
+new file mode 100755
+index 0000000..354061e
+--- /dev/null
++++ b/tools/build-mcp.sh
+@@ -0,0 +1,5 @@
++#!/bin/sh
++set -eu
++root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
++if [ "$#" -eq 0 ]; then set -- client; fi
++exec make -C "$root/src" MCP=1 "$@"
+diff --git a/tools/run-editor.sh b/tools/run-editor.sh
+new file mode 100755
+index 0000000..7a7e1fc
+--- /dev/null
++++ b/tools/run-editor.sh
+@@ -0,0 +1,25 @@
++#!/bin/sh
++set -eu
++client= data_root= profile= socket= dry_run=0
++while [ "$#" -gt 0 ]; do
++  case "$1" in
++    --client) client=$2; shift 2 ;;
++    --data-root) data_root=$2; shift 2 ;;
++    --profile) profile=$2; shift 2 ;;
++    --socket) socket=$2; shift 2 ;;
++    --dry-run) dry_run=1; shift ;;
++    *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
++  esac
++done
++for value in "$client" "$data_root" "$profile" "$socket"; do
++  case "$value" in /*) ;; *) printf 'All paths must be absolute\n' >&2; exit 2;; esac
++done
++[ -x "$client" ] && [ -d "$data_root" ] || exit 2
++if [ "$dry_run" = 1 ]; then
++  printf '%s\n' "$client" "-q$profile" "-k$data_root" "-mcpbridge$socket" '-t0'
++  exit
++fi
++umask 077
++mkdir -p "$profile"
++cd "$data_root"
++exec "$client" "-q$profile" "-k$data_root" "-mcpbridge$socket" -t0 > "$profile/client.log" 2>&1
+diff --git a/tools/tests/run_editor_smoke.sh b/tools/tests/run_editor_smoke.sh
+new file mode 100644
+index 0000000..8ada9e8
+--- /dev/null
++++ b/tools/tests/run_editor_smoke.sh
+@@ -0,0 +1,15 @@
++#!/bin/sh
++set -eu
++repo=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
++testroot=$(mktemp -d)
++trap 'rm -rf "$testroot"' EXIT
++mkdir -p "$testroot/data space" "$testroot/profile space"
++printf '#!/bin/sh\nprintf "client output\\n"\nprintf "%%s\\n" "$@" > "$ARG_LOG"\n' > "$testroot/fake client"
++chmod +x "$testroot/fake client"
++ARG_LOG="$testroot/args" "$repo/tools/run-editor.sh" --client "$testroot/fake client" --data-root "$testroot/data space" --profile "$testroot/profile space" --socket "$testroot/bridge.sock" > "$testroot/stdout"
++test ! -s "$testroot/stdout"
++rg -F -- "-q$testroot/profile space" "$testroot/args"
++rg -F -- "-k$testroot/data space" "$testroot/args"
++rg -F -- "-mcpbridge$testroot/bridge.sock" "$testroot/args"
++rg -F 'client output' "$testroot/profile space/client.log"
++printf 'launcher smoke: PASS\n'
